@@ -1,0 +1,171 @@
+🛠️ 1. Instalar el Agente de Wazuh en Debian
+Supongo que ya tienes el Wazuh Manager instalado en otra máquina o en la nube (puede ser en un VPS, una instancia en Azure/AWS, etc).
+Si necesitas instalarlo también, dime y te explico ese proceso.
+Para este ejemplo, el enfoque es en la máquina Debian (WordPress) como endpoint.
+
+1.1. Añadir el repositorio de Wazuh
+bash
+Copy
+Edit
+curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | sudo apt-key add -
+echo "deb https://packages.wazuh.com/4.x/apt/ stable main" | sudo tee /etc/apt/sources.list.d/wazuh.list
+sudo apt update
+1.2. Instalar el agente
+bash
+Copy
+Edit
+sudo apt install wazuh-agent
+1.3. Configurar el agente para conectarse al Wazuh Manager
+Edita el archivo /var/ossec/etc/ossec.conf
+Busca la sección <server> y agrega la IP del Manager (reemplaza X.X.X.X):
+
+xml
+Copy
+Edit
+<server>
+  <address>X.X.X.X</address>
+  <protocol>tcp</protocol>
+</server>
+Si usas un entorno de laboratorio, puedes usar la IP local o el nombre DNS.
+
+1.4. Registrar el agente en el manager
+En el Wazuh Manager, registra el nuevo agente (usando la IP/hostname de la máquina Debian):
+
+bash
+Copy
+Edit
+sudo /var/ossec/bin/manage_agents
+Elige A para añadir un agente
+
+Dale un nombre (por ejemplo, debian-wp)
+
+Copia la clave que te da
+
+Luego en la máquina Debian:
+
+bash
+Copy
+Edit
+sudo /var/ossec/bin/manage_agents
+Elige I para importar la clave
+
+Pega la clave copiada del manager
+
+Reinicia el agente:
+
+bash
+Copy
+Edit
+sudo systemctl restart wazuh-agent
+Y verifica que esté corriendo:
+
+bash
+Copy
+Edit
+sudo systemctl status wazuh-agent
+📝 2. Configurar monitoreo de logs de Apache y WordPress
+2.1. Configurar agente para monitorear logs de Apache
+Edita /var/ossec/etc/ossec.conf
+Agrega estas líneas DENTRO de la sección <ossec_config> (si ya existen <localfile>, agrégalas igual):
+
+xml
+Copy
+Edit
+<localfile>
+  <log_format>apache</log_format>
+  <location>/var/log/apache2/access.log</location>
+</localfile>
+<localfile>
+  <log_format>apache</log_format>
+  <location>/var/log/apache2/error.log</location>
+</localfile>
+2.2. Configurar logs de errores PHP de WordPress
+En /var/www/html/wp-config.php (ajusta el path si WordPress está en otro directorio), añade al final o después de la línea de /* That's all, stop editing! Happy publishing. */:
+
+php
+Copy
+Edit
+define( 'WP_DEBUG', true );
+define( 'WP_DEBUG_LOG', true );
+define( 'WP_DEBUG_DISPLAY', false );
+Esto creará el archivo /var/www/html/wp-content/debug.log cuando haya errores.
+
+Ahora, haz que Wazuh monitoree ese archivo también:
+
+Agrega en ossec.conf:
+
+xml
+Copy
+Edit
+<localfile>
+  <log_format>syslog</log_format>
+  <location>/var/www/html/wp-content/debug.log</location>
+</localfile>
+Reinicia el agente para aplicar los cambios:
+
+bash
+Copy
+Edit
+sudo systemctl restart wazuh-agent
+💥 3. Simular ataques y generar eventos
+3.1. Intentos fallidos de login SSH
+Puedes intentar varios inicios de sesión fallidos por SSH desde otra máquina, por ejemplo:
+
+bash
+Copy
+Edit
+ssh usuarioinexistente@IP_DE_LA_MAQUINA_DEBIAN
+Hazlo varias veces para generar logs de fallos.
+
+3.2. Modificar archivos sensibles
+bash
+Copy
+Edit
+sudo echo "Simulación de cambio malicioso" >> /etc/passwd
+Esto generará una alerta de integridad si tienes configurado monitoreo de archivos sensibles (por defecto, Wazuh lo hace para /etc).
+
+3.3. Generar errores en Apache/WordPress
+Abre el navegador y accede a http://TU_IP/wp-login.php y prueba varias veces contraseñas incorrectas.
+
+Intenta acceder a URLs inexistentes (por ejemplo, http://TU_IP/noexiste) para forzar un error 404.
+
+Puedes también editar temporalmente un plugin o archivo de WordPress para provocar un error PHP y que se registre en debug.log.
+
+📊 4. Monitorear los eventos en el Dashboard de Wazuh
+Accede a tu Dashboard de Wazuh (normalmente por https://IP_WAZUH:5601).
+
+Ve a la sección Threat Hunting.
+
+Busca eventos relacionados con:
+
+Intentos fallidos de login (T1078)
+
+Modificaciones de archivos (T1548.003)
+
+Errores 400/404/500 de Apache
+
+Errores en el debug.log de WordPress
+
+En la sección de Reports puedes generar informes filtrando por host, por tipo de alerta, por severidad, etc.
+
+🚨 Solución de problemas
+Si no ves eventos, revisa:
+
+Que el agente esté activo (sudo systemctl status wazuh-agent)
+
+Que la IP del Manager esté correcta en ossec.conf
+
+Los logs de Wazuh en /var/ossec/logs/ossec.log y en el manager
+
+¿Quieres un ejemplo de archivo ossec.conf completo para copiar y pegar?
+¿Te gustaría un ejemplo de reporte de Wazuh filtrando estos eventos?
+¿Quieres simular más tipos de ataque?
+Avísame y te ayudo con la siguiente parte 👨🏻‍💻🔎
+
+
+
+
+
+
+
+Ask ChatGPT
