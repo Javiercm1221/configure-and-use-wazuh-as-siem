@@ -27,6 +27,9 @@ Edit
 sudo /var/ossec/bin/manage_agents
 A para añadir agente, pon un nombre, copia la clave.
 
+MDAyIGRlYmliYW4td3B8IC3MgMTkyLjE2OC4zMi4xNiw4ZDYyYtk5WUtxY2ExNjIzNGRjMDg3NDBmYjY1NWUzOGZiODM3MTnmMGQ2NTMzZjNmJjQ0NjQ0NjExODViNjcu
+
+
 En Debian:
 
 bash
